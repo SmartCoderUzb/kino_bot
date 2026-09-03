@@ -20,6 +20,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis
+from aiohttp import web
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from kino_bot.config import BOT_TOKEN, DATABASE_URL, DB_PATH, REDIS_URL
 from kino_bot.database.db import Database
@@ -103,15 +105,59 @@ async def main():
     logger.info(f"Bot muvaffaqiyatli ishga tushdi: @{bot_info.username} (ID: {bot_info.id})")
     print(f"🚀 Bot @{bot_info.username} ishga tushdi!")
 
-    # Delete webhook and start polling
-    await bot.delete_webhook(drop_pending_updates=True)
-    try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-    finally:
-        await bot.session.close()
-        await db.disconnect()
-        if redis_client:
-            await redis_client.aclose()
+    webhook_url = os.getenv("WEBHOOK_URL")
+    webhook_host = os.getenv("WEBHOOK_HOST")
+    webhook_path = os.getenv("WEBHOOK_PATH", f"/webhook/bot/{os.getenv('BOT_ID', '1')}")
+    if not webhook_url and webhook_host:
+        webhook_url = f"{webhook_host.rstrip('/')}{webhook_path}"
+
+    webapp_host = os.getenv("WEBAPP_HOST", "127.0.0.1")
+    webapp_port = int(os.getenv("WEBAPP_PORT", "8100"))
+
+    if webhook_url:
+        logger.info(f"🌐 Webhook rejimida ishga tushmoqda: {webhook_url} ({webapp_host}:{webapp_port})")
+        app = web.Application()
+        SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=webhook_path)
+        setup_application(app, dp, bot=bot)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, host=webapp_host, port=webapp_port)
+        await site.start()
+
+        await bot.set_webhook(
+            url=webhook_url,
+            drop_pending_updates=True,
+            allowed_updates=dp.resolve_used_update_types()
+        )
+        logger.info(f"✅ Webhook server faol: {webapp_host}:{webapp_port}{webhook_path}")
+
+        stop_event = asyncio.Event()
+        try:
+            await stop_event.wait()
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
+        finally:
+            try:
+                await bot.delete_webhook()
+            except Exception:
+                pass
+            await runner.cleanup()
+            await bot.session.close()
+            await db.disconnect()
+            if redis_client:
+                await redis_client.aclose()
+    else:
+        # Fallback polling mode
+        logger.info("ℹ️ WEBHOOK_URL sozlanmagan. Polling rejimida ishga tushmoqda...")
+        await bot.delete_webhook(drop_pending_updates=True)
+        try:
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        finally:
+            await bot.session.close()
+            await db.disconnect()
+            if redis_client:
+                await redis_client.aclose()
 
 
 if __name__ == "__main__":

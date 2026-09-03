@@ -1,3 +1,16 @@
+import os
+import sys
+import types
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+if 'kino_bot' not in sys.modules:
+    pkg = types.ModuleType('kino_bot')
+    pkg.__path__ = [str(BASE_DIR)]
+    sys.modules['kino_bot'] = pkg
+
 import asyncio
 import logging
 import sys
@@ -33,7 +46,8 @@ async def main():
         return
 
     # Initialize Database (PostgreSQL with SQLite fallback)
-    db = Database(DATABASE_URL, sqlite_path=DB_PATH)
+    schema = os.getenv("DB_SCHEMA")
+    db = Database(DATABASE_URL, sqlite_path=DB_PATH, schema=schema)
     try:
         await db.connect()
     except Exception as e:

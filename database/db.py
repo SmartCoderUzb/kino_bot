@@ -24,7 +24,7 @@ class Database:
                 async def _init_conn(conn):
                     if self.schema:
                         await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema};")
-                        await conn.execute(f"SET search_path TO {self.schema}, public;")
+                        await conn.execute(f"SET search_path TO {self.schema};")
 
                 self.pool = await asyncpg.create_pool(
                     dsn=self.dsn,
@@ -36,7 +36,7 @@ class Database:
                 async with self.pool.acquire() as conn:
                     if self.schema:
                         await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema};")
-                        await conn.execute(f"SET search_path TO {self.schema}, public;")
+                        await conn.execute(f"SET search_path TO {self.schema};")
                     await conn.fetchval("SELECT 1")
                 self.engine = "postgres"
                 await self._create_tables_postgres()

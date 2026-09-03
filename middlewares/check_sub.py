@@ -10,9 +10,10 @@ logger = logging.getLogger(__name__)
 async def is_user_subscribed(bot, user_id: int, channel_id: str, redis=None) -> bool:
     if not channel_id:
         return True
+    bot_id = getattr(bot, "id", "")
     if redis:
         try:
-            cache_key = f"sub:{user_id}:{channel_id}"
+            cache_key = f"sub:{bot_id}:{user_id}:{channel_id}"
             cached = await redis.get(cache_key)
             if cached is not None:
                 return cached == b"1" or cached == "1"
@@ -24,7 +25,8 @@ async def is_user_subscribed(bot, user_id: int, channel_id: str, redis=None) -> 
         is_sub = member.status in ["member", "administrator", "creator", "restricted"]
         if is_sub and redis:
             try:
-                await redis.set(f"sub:{user_id}:{channel_id}", "1", ex=300)  # 5 daqiqa kesh
+                cache_key = f"sub:{bot_id}:{user_id}:{channel_id}"
+                await redis.set(cache_key, "1", ex=300)  # 5 daqiqa kesh
             except Exception:
                 pass
         return is_sub

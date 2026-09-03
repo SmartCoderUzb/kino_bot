@@ -60,7 +60,9 @@ async def main():
     try:
         redis_client = Redis.from_url(REDIS_URL)
         await redis_client.ping()
-        storage = RedisStorage(redis=redis_client)
+        from aiogram.fsm.storage.redis import DefaultKeyBuilder
+        key_builder = DefaultKeyBuilder(with_bot_id=True, prefix=schema or "fsm_kino")
+        storage = RedisStorage(redis=redis_client, key_builder=key_builder)
         logger.info("Redis xotirasi (RedisStorage) muvaffaqiyatli ishga tushdi.")
     except Exception as e:
         logger.warning(f"Redis ulanishida xatolik: {e}. Xotira rejimiga (MemoryStorage) o'tilmoqda.")

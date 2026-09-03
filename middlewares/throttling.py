@@ -32,7 +32,9 @@ class ThrottlingMiddleware(BaseMiddleware):
         if not user or user.is_bot:
             return await handler(event, data)
 
-        key = f"throttle:{user.id}"
+        bot = data.get("bot")
+        bot_id = getattr(bot, "id", "")
+        key = f"throttle:{bot_id}:{user.id}"
         try:
             is_locked = await self.redis.get(key)
             if is_locked:

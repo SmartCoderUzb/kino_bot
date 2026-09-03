@@ -105,14 +105,18 @@ async def main():
     logger.info(f"Bot muvaffaqiyatli ishga tushdi: @{bot_info.username} (ID: {bot_info.id})")
     print(f"🚀 Bot @{bot_info.username} ishga tushdi!")
 
+    bot_id = os.getenv("BOT_ID", "1")
     webhook_url = os.getenv("WEBHOOK_URL")
     webhook_host = os.getenv("WEBHOOK_HOST")
-    webhook_path = os.getenv("WEBHOOK_PATH", f"/webhook/bot/{os.getenv('BOT_ID', '1')}")
+    webhook_path = os.getenv("WEBHOOK_PATH", f"/webhook/bot/{bot_id}")
     if not webhook_url and webhook_host:
         webhook_url = f"{webhook_host.rstrip('/')}{webhook_path}"
 
     webapp_host = os.getenv("WEBAPP_HOST", "127.0.0.1")
-    webapp_port = int(os.getenv("WEBAPP_PORT", "8100"))
+    if bot_id and bot_id.isdigit():
+        webapp_port = 10000 + int(bot_id)
+    else:
+        webapp_port = int(os.getenv("WEBAPP_PORT", "8100"))
 
     if webhook_url:
         logger.info(f"🌐 Webhook rejimida ishga tushmoqda: {webhook_url} ({webapp_host}:{webapp_port})")
